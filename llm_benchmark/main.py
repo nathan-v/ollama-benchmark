@@ -1,18 +1,60 @@
-import typer
-from llm_benchmark import check_models
-from llm_benchmark import check_ollama
-from llm_benchmark import run_benchmark
-
-from .systeminfo import sysmain
-
+import os, subprocess, yaml
 from importlib.resources import files
+
+import typer
+import ollama
+
+from llm_benchmark import run_benchmark
+from .systeminfo import sysmain
 
 app = typer.Typer()
 
 
-@app.command()
-def hello(name: str):
-    print(f"Hello {name}!")
+def parse_yaml(yaml_file_path):
+    with open(yaml_file_path, "r") as stream:
+        try:
+            data = yaml.safe_load(stream)
+        except yaml.YAMLError as e:
+            print(e)
+    return data
+
+
+def run_command(command):
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing command '{command}': {e}")
+
+
+def models_file_to_list(models_file: str) -> list[str]:
+    print(f"LLM models file path：{models_file}")
+    models_dict = parse_yaml(models_file)
+    models_list = []
+    for x in models_dict["models"]:
+        models_list.append(x["model"])
+    return models_list
+
+
+def pull_models(
+    model_list: list[str] | None = None, models_file: str | None = None
+) -> None:
+    if models_file:
+        model_list = models_file_to_list(models_file)
+    print(f"Checking and pulling the following LLM models:")
+    for model_name in model_list:
+        print(model_name)
+        ollama.pull(model_name)
+    return None
+
+
+def check_ollama_version(ollamabin: str = "ollama") -> str:
+    res = run_command([ollamabin, "--version"])
+    if "warning" in res:
+        version_string = [item for item in res.split("\n") if "version" in item][0]
+    else:
+        version_string = res
+    return version_string.split(" ")[3]
 
 
 @app.command()
@@ -20,20 +62,26 @@ def run(
     ollamabin: str = typer.Option("ollama", "--ollamabin"),
     custombenchmark: str = typer.Option(None, "--custombenchmark"),
 ):
+    print("-" * 20)
     sys_info = sysmain.get_extra()
     print(f"Total memory size : {sys_info['memory']:.2f} GB")
     print(f"cpu_info: {sys_info['cpu']}")
     print(f"gpu_info: {sys_info['gpu']}")
     print(f"os_version: {sys_info['os_version']}")
-
-    ollama_version = check_ollama.check_ollama_version(ollamabin)
+    print("-" * 20)
+    ollama_version = check_ollama_version(ollamabin)
     print(f"ollama_version: {ollama_version}")
-    print("-" * 10)
+    print("-" * 20)
 
     ft_mem_size = float(f"{sys_info['memory']:.2f}")
 
+    models_list = None
+    models_file_path = None
     if custombenchmark:
-        models_file_path = custombenchmark
+        if os.path.isfile(custombenchmark):
+            models_file_path = custombenchmark
+        else:
+            models_list = custombenchmark.split(" ")
         print(f"running custom benchmark from models_file_path: {models_file_path}")
     else:
         models_file_path = str(
@@ -60,49 +108,35 @@ def run(
                 files("llm_benchmark").joinpath("data/benchmark_models_16gb_ram.yml")
             )
 
-    check_models.pull_models(models_file_path)
-    print("-" * 10)
+    pull_models(models_list, models_file_path)
+    print("-" * 20)
 
     benchmark_file_path = str(files("llm_benchmark").joinpath("data/benchmark2.yml"))
 
-    bench_results_info = {}
-    is_simulation = False
     if custombenchmark:
-        result0 = run_benchmark.run_benchmark(
-            models_file_path, benchmark_file_path, "custom-model", ollamabin
+        run_benchmark.run_benchmark(
+            models_file_path,
+            benchmark_file_path,
+            "custom-model",
+            ollamabin,
+            models_list,
         )
-        bench_results_info.update(result0)
-    elif is_simulation == False:
+    else:
         result1 = run_benchmark.run_benchmark(
             models_file_path, benchmark_file_path, "instruct", ollamabin
         )
-        bench_results_info.update(result1)
         result2 = run_benchmark.run_benchmark(
             models_file_path, benchmark_file_path, "question-answer", ollamabin
         )
-        bench_results_info.update(result2)
         result3 = run_benchmark.run_benchmark(
             models_file_path, benchmark_file_path, "vision-image", ollamabin
         )
-        bench_results_info.update(result3)
         result4 = run_benchmark.run_benchmark(
             models_file_path,
             benchmark_file_path,
             "instruction-question-answer-code-generation",
             ollamabin,
         )
-        bench_results_info.update(result4)
-    else:
-        bench_results_info.update({"llama2:7b": 7.65})
-        bench_results_info.update({"gemma2:7b": 17.77})
-
-
-@app.command()
-def goodbye(name: str, formal: bool = typer.Option(False, "--formal")):
-    if formal:
-        print(f"Goodbye Mr.(Ms.) {name}. Have a good day.")
-    else:
-        print(f"Bye {name}!")
 
 
 @app.command()

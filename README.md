@@ -4,6 +4,16 @@ LLM Benchmark for Throughput via Ollama (Local LLMs)
 
 Measure how fast your local LLMs _really_ are—with a simple, cross-platform CLI tool that tells you the tokens-per-second truth.
 
+## About this fork
+- Added the ability to specify the tested models on the command-line; no need to write YAML
+- Removed the default setting of phoning home with the results
+- Removed commented-out debug code
+- Removed unused/unnecessary code
+- Refactored complicated methods
+- Added unit tests
+- Updated documentation
+
+
 ## Installation prerequisites
 
 Working [Ollama](https://ollama.com) installation.
@@ -30,35 +40,20 @@ source .venv/bin/activate
 
 ## Installation Steps
 
-Depending on your python setup either
+Check out this fork and install from source
 
 ```bash
-pip install llm-benchmark
+git clone https://github.com/nathan-v/ollama-benchmark.git
+cd ollama-benchmark
+pip install .
 ```
 
-or
-
-```bash
-pipx install llm-benchmark
-```
-
-or uv
-
-```bash
-uv pip install llm-benchmark
-```
 
 ## Usage for general users directly
 
 ```bash
 llm_benchmark run
 ```
-
-## Installation and Usage in Video format
-
-![llm-benchmark](https://github.com/aidatatools/ollama-benchmark/blob/main/llm-benchmark.gif)
-
-It's tested on Python 3.10 and above.
 
 ## ollama installation with the following models installed
 
@@ -126,30 +121,31 @@ pip install poetry
 ## Usage in Python virtual environment
 
 ```bash
-poetry shell
 poetry install
-llm_benchmark hello jason
+llm_benchmark run
 ```
 
-### Example #1 send systeminfo and benchmark results to a remote server
+### Example #1 run the benchmark
 
 ```bash
 llm_benchmark run
 ```
 
-### Example #2 Do not send systeminfo and benchmark results to a remote server
-
-```bash
-llm_benchmark run --no-sendinfo
-```
-
-### Example #3 Benchmark run on explicitly given the path to the ollama executable (When you built your own developer version of ollama)
+### Example #2 Benchmark run on explicitly given the path to the ollama executable (When you built your own developer version of ollama)
 
 ```bash
 llm_benchmark run --ollamabin=~/code/ollama/ollama
 ```
 
-### Example #4 run custom benchmark models
+### Example #3 run custom benchmark models
+
+Run with --custombenchmark and space-separated a list of models
+
+```bash
+llm_benchmark run --custombenchmark="deepseek-r1:1.5b qwen:0.5b"
+```
+
+### Example #4 run custom benchmark models from a YAML file
 
 1. Create a custom benchmark file like following yaml format, replace with your own benchmark models, remember to use double quote for your model name
 

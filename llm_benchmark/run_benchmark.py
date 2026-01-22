@@ -4,38 +4,6 @@ import subprocess
 import datetime
 from importlib.resources import files
 
-parser = argparse.ArgumentParser(
-    prog="python3 check_models.py",
-    description="Before running check_models.py, please make sure you installed ollama successfully \
-        on macOS, Linux, or on Windows Powershell. You can check the website: https://ollama.com",
-    epilog="Author: Jason Chuang",
-)
-
-parser.add_argument(
-    "-v",
-    "--verbose",
-    action="store_true",
-    help="this program helps you check whether you have ollama benchmark models installed",
-)
-
-parser.add_argument(
-    "-m",
-    "--models",
-    type=str,
-    help="provide benchmark models YAML file path. ex. ../data/benchmark_models.yml",
-)
-
-parser.add_argument(
-    "-b",
-    "--benchmark",
-    type=str,
-    help="provide benchmark YAML file path. ex. ../data/benchmark1.yml",
-)
-
-parser.add_argument(
-    "-t", "--type", type=str, help="provide benchmark model type. ex, instruct"
-)
-
 
 def parse_yaml(yaml_file_path):
     """Parse YAML file and return its contents."""
@@ -150,10 +118,19 @@ def _process_model_type(models_dict, benchmark_dict, model_type, ollamabin, log_
 
 
 def run_benchmark(
-    models_file_path, benchmark_file_path, model_type, ollamabin: str = "ollama"
+    models_file_path: str | None,
+    benchmark_file_path: str,
+    model_type: str,
+    ollamabin: str = "ollama",
+    models_list: list[str] | None = None,
 ):
     """Run benchmark for specified model type and return results."""
-    models_dict = parse_yaml(models_file_path)
+    if models_file_path:
+        models_dict = parse_yaml(models_file_path)
+    else:
+        models_dict = {"models": []}
+        for model in models_list:
+            models_dict["models"].append({"model": model})
     benchmark_dict = parse_yaml(benchmark_file_path)
     results = {}
 
@@ -179,14 +156,3 @@ def run_benchmark(
         )
 
     return results
-
-
-if __name__ == "__main__":
-    args = parser.parse_args()
-    if (
-        (args.models is not None)
-        and (args.benchmark is not None)
-        and (args.type is not None)
-    ):
-        run_benchmark(args.models, args.benchmark, args.type, args.ollamabin)
-        print("-" * 40)
